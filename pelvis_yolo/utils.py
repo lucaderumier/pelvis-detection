@@ -4,8 +4,17 @@ Utility functions.
 Written by Luca Derumier.
 Version 1.0 - May 2020.
 '''
+import os
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
+
+from PIL import Image, ImageDraw
+from skimage.color import gray2rgb
+
+####################################################
+################### Computations ###################
+####################################################
 
 def compute_IoU(box1,box2):
     '''Computes IoU between box1 and box2.
@@ -72,6 +81,145 @@ def compute_classification(gt,pred,dim):
 
     return (TP,TN,FP,FN,precision,recall,FNR)
 
+def transform_box(box,ratio):
+    '''Takes bounding box and rescales it according to ratio.
+
+    Inputs:
+        box: the box coordinates as a list.
+        ratio: the rescaling ratio
+
+    Returns:
+        rescaled_box: the rescaled box.
+    '''
+
+    return [elem*ratio for elem in box]
+
+#####################################################
+################### Visualization ###################
+#####################################################
+
+def draw_bb(im_path,bb,to_draw=['bladder','rectum','prostate'],colors=['green','red','blue','yellow'],save=False,results_path='',rescale=False,ratio=500/416):
+    '''Draws boudning boxes on image.
+
+    Inputs:
+        im_path: the path to the image
+        bb: the bounding box coordinates.
+        to_draw: a list of strings that contains the organs to draw the bounding box for.
+        colors: the colors of the bounding boxes.
+        save: wether to save the image or not.
+        results_path: the path of the folder where to save the results.
+        rescale: wether to rescale the box or not.
+        ratio: the rescaling ratio.'''
+
+    if(not im_path.endswith('.jpg')):
+        raise NameError('File is not a jpeg file.')
+
+    im = Image.open(im_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+
+    i = 0
+    for organ in to_draw:
+        if(organ in bb.keys() and bb[organ] is not None and len(bb[organ]) != 0):
+            if rescale:
+                bb[organ].sort(key=lambda x:x[4])
+                box = transform_box(bb[organ][0],ratio)
+            else:
+                box = bb[organ]
+
+            draw.rectangle([box[1],box[0],box[3],box[2]],outline=colors[i])
+        i += 1
+
+
+    # Extracts the image name
+    name = os.path.basename(im_path)
+
+    if save:
+        if rescale:
+            im.save(os.path.join(results_path,name.replace('.jpg','-pred.jpg')))
+        else:
+            im.save(os.path.join(results_path,name.replace('.jpg','-bb.jpg')))
+    else:
+        im.show()
+
+    del draw
+
+def over_draw(im_path,bb_gt,bb_pred,to_draw=['bladder','rectum','prostate'],colors_gt=['green','red','blue','yellow'],colors_pred=['lime','deeppink','cyan','gold'],save=False,results_path='',ratio=500/416):
+    '''Draws both prediction and ground truth bounding boxes on image.
+
+    Inputs:
+        im_path: the path to the image
+        bb_gt: the ground truth bounding box coordinates.
+        bb_pred: the prediction bounding box coordinates.
+        to_draw: a list of strings that contains the organs to draw the bounding box for.
+        colors_gt: the colors of the ground truth bounding boxes.
+        colors_pred: the colors of the prediction bounding boxes.
+        save: wether to save the image or not.
+        results_path: the path of the folder where to save the results.
+        ratio: the rescaling ratio.'''
+
+    if(not im_path.endswith('.jpg')):
+        raise NameError('File is not a jpeg file.')
+
+    im = Image.open(im_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+
+    i = 0
+    for organ in to_draw:
+        if(organ in bb_gt.keys() and bb_gt[organ] is not None):
+            box_gt = bb_gt[organ]
+            draw.rectangle([box_gt[1],box_gt[0],box_gt[3],box_gt[2]],outline=colors_gt[i])
+
+        if(organ in bb_pred.keys() and len(bb_pred[organ]) != 0):
+            bb_pred[organ].sort(key=lambda x:x[4])
+            box_pred = transform_box(bb_pred[organ][0],ratio)
+            draw.rectangle([box_pred[1],box_pred[0],box_pred[3],box_pred[2]],outline=colors_pred[i])
+        i += 1
+
+    # Extracts the image name
+    name = os.path.basename(im_path)
+
+    if save:
+        im.save(os.path.join(results_path,name.replace('.jpg','-over.jpg')))
+    else:
+        im.show()
+
+    del draw
+
+##############################################
+################### Graphs ###################
+##############################################
+
+def learning_graph(history,metrics,legend,save=False,path='history.png',scale='linear'):
+    '''Plots the learning graph's metrics.
+
+    Inputs:
+        history: the dictionnary that contains the history data.
+        metrics: the metrcis we want to plot.
+        legend: the legend of the plot.
+        save: wether to save the plot or not.
+        path: the path to the file to be saved
+        scale: the scale of the y values.'''
+
+    for m in metrics:
+        plt.plot(history[m])
+
+    plt.title('Learning graph')
+    plt.ylabel('loss')
+    plt.yscale(scale)
+    plt.xlabel('epoch')
+    plt.legend(legend, loc='upper right')
+    if save:
+        plt.savefig(path)
+    else:
+        plt.show()
+
+    plt.close()
+
+
+#############################################
+################### Files ###################
+#############################################
+
 def save_annotation(dict,annot_path):
     '''Saves annot_file into a dictionnary.
 
@@ -97,3 +245,30 @@ def load_annotation(annot_path):
         data = pickle.load(fp)
 
     return data
+
+def merge_history(path):
+    '''Merges all the history files from path into one dictionnary.
+
+    Inputs:
+        path: the path to the folder where the history files are stored.
+
+    Returns:
+        final_h: the merged history dictionnary.
+    '''
+    hist_files = [x for x in os.listdir(path) if x.endswith('.p')]
+
+    if len(hist_files) == 0:
+        raise ValueError('No history files to merge')
+
+    final_h = {}
+    for n in range(len(hist_files)):
+        if(os.path.exists(os.path.join(path,'history'+str(n)+'.p'))):
+            h = os.path.join(path,'history'+str(n)+'.p')
+            hx = load_annotation(h)
+            if(n == 0):
+                final_h = hx
+            else:
+                for key,value in hx.items():
+                    final_h[key].extend(value)
+
+    return final_h

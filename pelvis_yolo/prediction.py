@@ -74,10 +74,11 @@ argparser.add_argument(
     help="name of the weights file that we want to load (should be in 'models' directory).",
     default='')
 
-argparser.add_argument('-S',
-                    '--save',
-                    help="saves the images with boudning box annotations as jpg files.",
-                    action='store_true')
+argparser.add_argument(
+    '-S',
+    '--save',
+    help="enables saving the images with bounding box annotations as jpg files.",
+    action='store_true')
 
 
 ########################################################
@@ -138,6 +139,7 @@ def _main(args):
 #########################################################
 ################### Utility functions ###################
 #########################################################
+
 def non_best_suppression(boxes,classes,scores):
     '''Filters out the boxes, classes and scores that are not associated with the maximum score.
 
