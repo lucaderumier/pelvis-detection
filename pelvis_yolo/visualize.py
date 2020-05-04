@@ -82,11 +82,6 @@ def _main(args):
     h_mode = args.history
     history_path = args.history_path
 
-    # Computed arguments
-    graphs_dir = os.path.join(results_dir,'graphs')
-    if not os.path.exists(graphs_dir):
-        os.makedirs(graphs_dir)
-
     # Creating config instance
     config = Config()
     ratio = (config.INPUT_DIM[0]/config.OUTPUT_DIM[0])
@@ -106,6 +101,11 @@ def _main(args):
 
     # Plotting history
     if h_mode:
+        # Computed arguments
+        graphs_dir = os.path.join(results_dir,'graphs')
+        if not os.path.exists(graphs_dir):
+            os.makedirs(graphs_dir)
+
         history = merge_history(history_path)
         metrics = ['loss','classification_loss','coord_loss','conf_loss']
         legend = ['loss (total)', 'classification loss','coordinates loss','confidence loss']
@@ -113,6 +113,7 @@ def _main(args):
         for i in range(len(metrics)):
             learning_graph(history,[metrics[i],'val_'+metrics[i]],['training '+legend[i],'validation '+legend[i] ],save=save,path=os.path.join(graphs_dir,metrics[i]+'_lin.png'),scale='linear')
             learning_graph(history,[metrics[i],'val_'+metrics[i]],['training '+legend[i],'validation '+legend[i] ],save=save,path=os.path.join(graphs_dir,metrics[i]+'_log.png'),scale='log')
+
 
 
 ############################################

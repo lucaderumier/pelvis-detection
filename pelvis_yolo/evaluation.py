@@ -11,7 +11,7 @@ import imageio
 import pickle
 
 from config import Config
-
+from utils import *
 
 ########################################################
 #################### GPU Constraint ####################
@@ -66,6 +66,7 @@ def _main(args):
         os.makedirs(os.path.join(results_dir,'stats'))
 
     # Loading files
+    print(os.path.join(data_path,gt_annot))
     gt = load_annotation(os.path.join(data_path,gt_annot))
     pred = load_annotation(os.path.join(results_dir,'predictions','pred_boxes.p'))
 
@@ -81,6 +82,14 @@ def _main(args):
 
     cases_stats = cases(iou_stats)
     save_annotation(cases_stats,os.path.join(results_dir,'stats','cases.p'))
+
+    # Writing directories to a file
+    f = open(os.path.join(results_dir,'stats','stats.txt'),'w+')
+    f.write('{}\n\n'.format(found_stats))
+    f.write('{}\n\n'.format(iou_stats))
+    f.write('{}\n\n'.format(classification_stats))
+    f.write('{}\n\n'.format(cases_stats))
+    f.close()
 
 
 
@@ -158,7 +167,7 @@ def found(gt,pred):
 
         # Some of the images dont have this organ
         if stats[organ]['total_noorg'] > 0:
-            percentages.update({o : {
+            percentages.update({organ : {
                         'found' : (stats[organ]['found']/stats[organ]['total'])*100,
                         'missed' : (stats[organ]['missed']/stats[organ]['total'])*100,
                         'found_noorg' : (stats[organ]['found_noorg']/stats[organ]['total_noorg'])*100,
@@ -167,7 +176,7 @@ def found(gt,pred):
                         }})
         # All the images have this organ
         else:
-            percentages.update({o : {
+            percentages.update({organ : {
                         'found' : (stats[organ]['found']/stats[organ]['total'])*100,
                         'missed' : (stats[organ]['missed']/stats[organ]['total'])*100,
                         'add_found' : (stats[organ]['additional']/stats[organ]['total'])*100

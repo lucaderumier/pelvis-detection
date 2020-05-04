@@ -4,6 +4,7 @@ Script to use YOLOv2's to compute bounding boxes on custom data.
 Adapted from github.com/allanzelener/YAD2K by Luca Derumier.
 Version 1.0 - May 2020.
 '''
+
 import argparse
 import os
 import pickle
@@ -99,6 +100,7 @@ def _main(args):
     # Computed arguments
     classes_path = os.path.join(model_dir, classes)
     dir_list = [x for x in sorted(os.listdir(data_path)) if x.endswith('.jpg')]
+
 
     # Creating config instance
     config = Config()

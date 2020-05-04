@@ -4,7 +4,6 @@ Script to train YOLOv2 on pelvic images for bladder, rectum and prostate recogni
 Adapted from github.com/allanzelener/YAD2K by Luca Derumier.
 Version 1.0 - May 2020.
 '''
-
 import argparse
 import os
 import pickle
@@ -20,6 +19,7 @@ from yad2k.models.keras_yolo import preprocess_true_boxes, yolo_body, yolo_loss
 from yad2k.models.keras_yolo import metric
 from utils import save_annotation, load_annotation
 from config import Config
+
 
 
 ########################################################
@@ -79,6 +79,12 @@ argparser.add_argument(
     help='name of classes txt file (should be in model_dir).',
     default='pelvis_classes.txt')
 
+argparser.add_argument(
+    '-G',
+    '--generator',
+    help="enables custom data generator instead of keras'.",
+    action='store_true')
+
 ########################################################
 ######################### Main #########################
 ########################################################
@@ -92,6 +98,7 @@ def _main(args):
     model_dir = args.model_dir
     classes = args.classes
     weights = args.weights
+    gen = args.generator
 
     # Computed arguments
     data_path_train = os.path.join(data_path,'train',training_file)
@@ -122,33 +129,69 @@ def _main(args):
     image_data_train, boxes_train = process_data(data_train['images'], data_train['boxes'])
     image_data_val, boxes_val = process_data(data_val['images'], data_val['boxes'])
 
-    # Extracting anchor boxes and masks
-    detectors_mask_train, matching_true_boxes_train = get_detector_mask(boxes_train, anchors)
-    detectors_mask_val, matching_true_boxes_val = get_detector_mask(boxes_val, anchors)
+    # Normalizing data
+    normalized_data_train  = normalize(image_data_train,os.path.join(data_path,'train'))
+    normalized_data_val = normalize(image_data_val,os.path.join(data_path,'train'),train=False)
 
     # Creating yolo model
     model_body, model = create_model(anchors, class_names,freeze_body=config.FREEZE,load_pretrained=config.LOAD_PRETRAINED)
     #print(model_body.summary())
 
-    # Normalizing data
-    normalized_data_train  = normalize(image_data_train,os.path.join(data_path,'train'))
-    normalized_data_val = normalize(image_data_val,os.path.join(data_path,'train'),train=False)
+    if not gen:
 
-    # Creating input list for validation data
-    data_train = [normalized_data_train, boxes_train, detectors_mask_train, matching_true_boxes_train]
-    data_val = [normalized_data_val,boxes_val,detectors_mask_val,matching_true_boxes_val]
+        # Extracting anchor boxes and masks
+        detectors_mask_train, matching_true_boxes_train = get_detector_mask(boxes_train, anchors)
+        detectors_mask_val, matching_true_boxes_val = get_detector_mask(boxes_val, anchors)
 
-    # Call to train function
-    train(
-        model,
-        class_names,
-        anchors,
-        data_train,
-        data_val,
-        config,
-        weights_path=weights_path,
-        results_dir=results_dir
-    )
+        # Creating input list for validation data
+        data_train = [normalized_data_train, boxes_train, detectors_mask_train, matching_true_boxes_train]
+        data_val = [normalized_data_val,boxes_val,detectors_mask_val,matching_true_boxes_val]
+
+        # Call to train function
+        train(
+            model,
+            class_names,
+            anchors,
+            data_train,
+            data_val,
+            config,
+            weights_path=weights_path,
+            results_dir=results_dir
+        )
+    else:
+        # Import generators
+        from data_generator import DataGenerator
+
+        # Parameters
+        params = {'dim': (416,416,3),
+              'batch_size': config.BATCH_SIZE,
+              'n_classes': 3,
+              'n_channels': 1,
+              'output_dim' : 1,
+              'input_len': 4,
+              'shuffle': True}
+
+        # Ids
+        list_ids_train = sorted([x for x in os.listdir(os.path.join(data_path,'train')) if x.endswith('.jpg')])
+        list_ids_val = sorted([x for x in os.listdir(os.path.join(data_path,'val')) if x.endswith('.jpg')])
+
+        # Data generators
+        datagen_train = DataGenerator(list_ids_train, normalized_data_train, anchors, **params)
+        datagen_val = DataGenerator(list_ids_val, normalized_data_val, anchors, **params)
+
+        train_generator(
+            model,
+            datagen_train,
+            datagen_val,
+            len(list_ids_train),
+            image_data_train.shape,
+            class_names,
+            anchors,
+            config,
+            weights_path=weights_path,
+            results_dir=results_dir
+        )
+
 
 #########################################################
 ################### Utility functions ###################
@@ -189,14 +232,14 @@ def normalize(image_data,training_dir,train=True):
 
 
 def get_classes(classes_path):
-    '''loads the classes'''
+    '''loads the classes.'''
     with open(classes_path) as f:
         class_names = f.readlines()
     class_names = [c.strip() for c in class_names]
     return class_names
 
 def get_anchors(anchors_path):
-    '''loads the anchors from a file'''
+    '''loads the anchors from a file.'''
     if os.path.isfile(anchors_path):
         with open(anchors_path) as f:
             anchors = f.readline()
@@ -207,7 +250,7 @@ def get_anchors(anchors_path):
         return YOLO_ANCHORS
 
 def process_data(images, boxes=None):
-    '''processes the data'''
+    '''processes the data.'''
     images = [PIL.Image.fromarray(i) for i in images]
     orig_size = np.array([images[0].width, images[0].height])
     orig_size = np.expand_dims(orig_size, axis=0)
@@ -403,6 +446,73 @@ def train(model, class_names, anchors, data_train, data_val,config,weights_path=
         # Safety load
         model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
+def train_generator(model, training_generator, validation_generator, train_size, data_shape,class_names, anchors,config,weights_path = None,results_dir='results'):
+    ''' Retrains/fine-tune the model with custom data generator.
+        Saves the weights every 10 epochs for 200 epochs.
+
+    Inputs:
+        model: the model as returned by the create_model function.
+        training_generator: the generator object for training data.
+        validation_generator: the generator object for validation data.
+        train_size: the size of the training set.
+        data_shape: the shape of the input data.
+        class_names: the list contatining the class names.
+        anchors: a np array containing the anchor boxes dimensions.
+        config: a config object that has all the configuration parameters for the training.
+        weights_path: the path to the weights that the models needs to load. None if we want to start from scratch.
+        results_dir: the path to the directory where the results are going to be saved.
+    '''
+
+    # Creating missing directories
+    if not os.path.exists(os.path.join(results_dir,'models')):
+        os.makedirs(os.path.join(results_dir,'models'))
+    if not os.path.exists(os.path.join(results_dir,'history')):
+        os.makedirs(os.path.join(results_dir,'history'))
+
+    # Loading configuration parameters
+    freeze_body = config.FREEZE
+    learning_rate = config.LEARNING_RATE
+    batch_size = config.BATCH_SIZE
+
+    ######################################
+    ############# TRAINING ###############
+    ######################################
+
+    # Defining metrics
+    met = metric([model.get_layer('conv2d_24').output,model.inputs[1],model.inputs[2], model.inputs[3]],data_shape,anchors,len(class_names),score_threshold=0.07,iou_threshold=0.0)
+
+    # Compile model and load weights_name
+    optimizer = optimizers.Adam(lr = learning_rate)
+
+    model.compile(
+        optimizer=optimizer, loss={
+            'yolo_loss': lambda y_true, y_pred: y_pred
+        },metrics=[met.IoU,met.classification_loss,met.coord_loss,met.conf_loss])  # This is a hack to use the custom loss function in the last layer
+
+    if weights_path is not None:
+        model.load_weights(weights_path)
+
+    # Callbacks
+    logging = tf.keras.callbacks.TensorBoard()
+    #checkpoint = ModelCheckpoint("trained_best.h5", monitor='val_loss',save_weights_only=True, save_best_only=True)
+    #early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
+
+    # Training for loop
+    for stage in range(20):
+        # SLaunch training
+        history = model.fit_generator(generator=training_generator,
+                        validation_data=validation_generator,
+                        steps_per_epoch=int(np.ceil(train_size/batch_size)),
+                        epochs=10,
+                        callbacks=[logging])
+
+        # Saving history and weights
+        with open(os.path.join(results_dir,'history','history'+str(stage)+'.p'), 'wb') as fp:
+            pickle.dump(history.history, fp)
+        model.save_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
+
+        # Safety load
+        model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
 ############################################
 ################### Main ###################
