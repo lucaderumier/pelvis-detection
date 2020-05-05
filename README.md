@@ -26,11 +26,27 @@ Original paper: [YOLO9000: Better, Faster, Stronger](https://arxiv.org/abs/1612.
 
 ### Usage
 
-- [Keras](https://github.com/fchollet/keras)
-- [Tensorflow](https://www.tensorflow.org/)
-- [Numpy](http://www.numpy.org/)
-- [Pillow](https://pillow.readthedocs.io/) (For rendering test results.)
-- [Python 3](https://www.python.org/)
+To use this code on your own data, start by creating a 'pelvis_scan/data' folder inside the 'split_segmentation' folder of this repository. Then split your data set into three folders named 'train', 'test' and 'val' inside 'pelvis_scan/data/'. Each folder must contain an annotation file with the bounding box annotations stored as a .p python dictionary with the name 'annotations_{train, test or val}.p'. When that is done, a few steps are required depending on what you want to do with the model. If you want to use weights from pre-trained model, you must create a 'models' directory and store the '.h5' files there.
+
+#### Train the model
+
+Start by running the 'make dataset' command. This will transform your .p annotation file into a .npz file directly usable by the network. then run the 'make train' command from training the model. If you want to load the weights of a previously trained model, add 'WEIGHTS={weights file name}' and the model will automatically start the training from where it was left off.
+
+#### Run predictions with the model
+
+Run the 'make pred WEIGHT={weights file name} SET={train,val or test} FILE={name of the .npz file corresponding to the set}', the npz file has to be in the same folder as the data. The results will be saved as a series of '.p' files in the 'results/' folder.
+
+#### Evaluate  the model
+
+Run the 'make eval WEIGHT={weights file name} SET={train,val or test} ANNOT_FILE={name of the .p file corresponding to the data}', the p file has to be in the same folder as the data. The results will be saved as a series of '.p' files in the 'results/' folder.
+
+#### Save the output images with bounding boxes drawn on them
+
+Run the 'make draw SET={train,val or test} ANNOT_FILE={name of the .p file corresponding to the data}', the p file has to be in the same folder as the data. The results will be saved as a series of '.p' files in the 'results/' folder.
+
+#### Predict, evaluate and save the resulting images all at once.
+
+Run the 'make analysis WEIGHT={weights file name} STAGE_DIR={name of the folder where the results will be saved} FILE={name of the .npz file corresponding to the set} ANNOT_FILE={name of the .p file corresponding to the data}'. The results will be stored in 'stages/{SET}/{STAGES_DIR}/'.
 
 --------------------------------------------------------------------------------
 
@@ -41,7 +57,7 @@ The split_segmentation folder contains the files for split and merge segmentatio
 
 ### Usage
 
-To use this code on your own data, start by creating a data folder inside the repository. Then add two files to the data folder : 'image.npy' and 'mask.npy' of shape (192,192,160) and (192,192,160,3). 'mask.npy' contains three segmentation masks (bladder, rectum and prostate) of ones (if the organ belongs to the mask) and zeros (if it does not).
+To use this code on your own data, start by creating a 'data' folder inside the 'split_segmentation' folder of this repository. Then add two files to the data folder : 'image.npy' and 'mask.npy' of shape (192,192,160) and (192,192,160,3). 'mask.npy' contains three segmentation masks (bladder, rectum and prostate) of ones (if the organ belongs to the mask) and zeros (if it does not).
 
 Once this is done, you can run the command line scripts to display the results of the different algorithms on this particular image.
 
