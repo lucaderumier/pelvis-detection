@@ -4,6 +4,7 @@ Script of base configuration class.
 Written by Luca Derumier.
 Version 1.0 - May 2020.
 '''
+
 import numpy as np
 
 #########################################################
@@ -14,6 +15,9 @@ class Config():
     '''Base configuration class. For custom configurations, create a
     sub-class that inherits from this one and override properties
     that need to be changed.'''
+
+    # Saves model every n epochs
+    EPOCHS = 10
 
     # Freeze all layers but last
     FREEZE = False

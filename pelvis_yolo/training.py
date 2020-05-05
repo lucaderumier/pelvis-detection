@@ -404,6 +404,7 @@ def train(model, class_names, anchors, data_train, data_val,config,weights_path=
     freeze_body = config.FREEZE
     learning_rate = config.LEARNING_RATE
     batch_size = config.BATCH_SIZE
+    epochs = config.EPOCHS
 
     ######################################
     ############# TRAINING ###############
@@ -435,7 +436,7 @@ def train(model, class_names, anchors, data_train, data_val,config,weights_path=
                       np.zeros(len(data_train[0])),
                       validation_data=(data_val,np.zeros(len(data_val[0]))),
                       batch_size=batch_size,
-                      epochs=10,
+                      epochs=epochs,
                       callbacks=[logging])
 
         # Saving history and weights
@@ -473,6 +474,7 @@ def train_generator(model, training_generator, validation_generator, train_size,
     freeze_body = config.FREEZE
     learning_rate = config.LEARNING_RATE
     batch_size = config.BATCH_SIZE
+    epochs = config.EPOCHS
 
     ######################################
     ############# TRAINING ###############
@@ -503,7 +505,7 @@ def train_generator(model, training_generator, validation_generator, train_size,
         history = model.fit_generator(generator=training_generator,
                         validation_data=validation_generator,
                         steps_per_epoch=int(np.ceil(train_size/batch_size)),
-                        epochs=10,
+                        epochs=epochs,
                         callbacks=[logging])
 
         # Saving history and weights

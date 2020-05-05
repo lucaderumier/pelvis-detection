@@ -11,6 +11,13 @@ import matplotlib.pyplot as plt
 
 from PIL import Image, ImageDraw
 from skimage.color import gray2rgb
+from config import Config
+
+####################################################
+################# Global variables #################
+####################################################
+
+config = Config()
 
 ####################################################
 ################### Computations ###################
@@ -94,6 +101,20 @@ def transform_box(box,ratio):
 
     return [elem*ratio for elem in box]
 
+def nan_to_zero(number):
+    '''Returns the number or 0 if it's nan.
+
+    Inputs:
+        number: float or nan.
+
+    Retruns:
+        number: number or zero if number is nan.
+    '''
+
+    if(np.isnan(number)):
+        return 0
+    return number
+
 #####################################################
 ################### Visualization ###################
 #####################################################
@@ -109,7 +130,8 @@ def draw_bb(im_path,bb,to_draw=['bladder','rectum','prostate'],colors=['green','
         save: wether to save the image or not.
         results_path: the path of the folder where to save the results.
         rescale: wether to rescale the box or not.
-        ratio: the rescaling ratio.'''
+        ratio: the rescaling ratio.
+    '''
 
     if(not im_path.endswith('.jpg')):
         raise NameError('File is not a jpeg file.')
@@ -155,7 +177,8 @@ def over_draw(im_path,bb_gt,bb_pred,to_draw=['bladder','rectum','prostate'],colo
         colors_pred: the colors of the prediction bounding boxes.
         save: wether to save the image or not.
         results_path: the path of the folder where to save the results.
-        ratio: the rescaling ratio.'''
+        ratio: the rescaling ratio.
+    '''
 
     if(not im_path.endswith('.jpg')):
         raise NameError('File is not a jpeg file.')
@@ -197,8 +220,9 @@ def learning_graph(history,metrics,legend,save=False,path='history.png',scale='l
         metrics: the metrcis we want to plot.
         legend: the legend of the plot.
         save: wether to save the plot or not.
-        path: the path to the file to be saved
-        scale: the scale of the y values.'''
+        path: the path to the file to be saved.
+        scale: the scale of the y values.
+    '''
 
     for m in metrics:
         plt.plot(history[m])
@@ -210,6 +234,30 @@ def learning_graph(history,metrics,legend,save=False,path='history.png',scale='l
     plt.legend(legend, loc='upper right')
     if save:
         plt.savefig(path)
+    else:
+        plt.show()
+
+    plt.close()
+
+def iou_graph(iou,var,epochs,legend,title='IoU',save=False,path='iou.png'):
+    '''Plots the iou metric.
+
+    Inputs:
+        iou: list of ious.
+        epochs: list of corresponding epochs
+        legend: the legend of the plot.
+        save: wether to save the plot or not.
+        path: the path to the file to be saved.
+    '''
+    for i in range(len(iou)):
+        plt.errorbar(epochs,iou[i],var[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
+
+    plt.title(title)
+    plt.ylabel('IoU')
+    plt.xlabel('epoch')
+    plt.legend(legend, loc='upper right')
+    if save:
+        plt.savefig(path,dpi=1200)
     else:
         plt.show()
 
