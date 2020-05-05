@@ -50,7 +50,7 @@ Once this is done, you can run the command line scripts to display the results o
 - run_spamcrop.sh : runs the split and merge segmentation method on the image and feeds the result as input of the split and crop segmentation method. Then saves the result as 'cropped_image.npy' and displays it (along with the ground truth bounding box containing all the organs).
 
 The ground truth bounding box is displayed in blue and the predicted box in purple. A piece of the results you should obtained after running each file is displayed below.
-
-![run_merge.sh](split_segmentation/etc/spam.png){:height="50%" width="50%"}
+<img src="split_segmentation/etc/spam.png" align="left" height="48" width="48">
+![run_merge.sh](split_segmentation/etc/spam.png)
 ![run_crop.sh](split_segmentation/etc/crop.png){:height="50%" width="50%"}
 ![run_spamcrop.sh](split_segmentation/etc/spamcrop.png){:height="50%" width="50%"}
