@@ -101,18 +101,18 @@ def transform_box(box,ratio):
 
     return [elem*ratio for elem in box]
 
-def nan_to_zero(number):
+def nan_to_x(number,x=0):
     '''Returns the number or 0 if it's nan.
 
     Inputs:
         number: float or nan.
 
     Retruns:
-        number: number or zero if number is nan.
+        x: number or x if number is nan.
     '''
 
     if(np.isnan(number)):
-        return 0
+        return x
     return number
 
 #####################################################
@@ -239,21 +239,23 @@ def learning_graph(history,metrics,legend,save=False,path='history.png',scale='l
 
     plt.close()
 
-def iou_graph(iou,var,epochs,legend,title='IoU',save=False,path='iou.png'):
-    '''Plots the iou metric.
+def generic_graph(data,var,epochs,legend,ylabel='IoU',title='IoU',save=False,path='iou.png'):
+    '''Plots some data metric.
 
     Inputs:
-        iou: list of ious.
+        data: list of data.
         epochs: list of corresponding epochs
         legend: the legend of the plot.
+        ylabel: y axis label.
+        title: title of the graph.
         save: wether to save the plot or not.
         path: the path to the file to be saved.
     '''
-    for i in range(len(iou)):
-        plt.errorbar(epochs,iou[i],var[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
+    for i in range(len(data)):
+        plt.errorbar(epochs,data[i],var[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
 
     plt.title(title)
-    plt.ylabel('IoU')
+    plt.ylabel(ylabel)
     plt.xlabel('epoch')
     plt.legend(legend, loc='upper right')
     if save:
