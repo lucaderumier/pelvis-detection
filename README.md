@@ -2,7 +2,7 @@
 
 ## Description
 
-This repository contains the files that were used for my master thesis. 
+This repository contains the files that were used for my master thesis.
 The aim of the methods defined in this repositroy is to detect organs (bladder, rectum, prostate) in CT and CBCT scans of the male pelvic area and extract a boudning box containing all of them. This repositroy contains two distinct classes of algorithms : the classical computer vision based methods (split_segmentaion) and the learning based method (pelvis_yolo). Both are described in below.
 
 --------------------------------------------------------------------------------
@@ -21,10 +21,16 @@ Original paper: [YOLO9000: Better, Faster, Stronger](https://arxiv.org/abs/1612.
 - [Keras](https://github.com/fchollet/keras)
 - [Tensorflow](https://www.tensorflow.org/)
 - [Numpy](http://www.numpy.org/)
-- [h5py](http://www.h5py.org/) (For Keras model serialization.)
 - [Pillow](https://pillow.readthedocs.io/) (For rendering test results.)
 - [Python 3](https://www.python.org/)
-- [pydot-ng](https://github.com/pydot/pydot-ng) (Optional for plotting model.)
+
+### Usage
+
+- [Keras](https://github.com/fchollet/keras)
+- [Tensorflow](https://www.tensorflow.org/)
+- [Numpy](http://www.numpy.org/)
+- [Pillow](https://pillow.readthedocs.io/) (For rendering test results.)
+- [Python 3](https://www.python.org/)
 
 --------------------------------------------------------------------------------
 
@@ -45,8 +51,6 @@ Once this is done, you can run the command line scripts to display the results o
 
 The ground truth bounding box is displayed in blue and the predicted box in purple. A piece of the results you should obtained after running each file is displayed below.
 
-![run_merge.sh](split_segmentation/etc/spam.png)
-![run_crop.sh](split_segmentation/etc/crop.png)
-![run_spamcrop.sh](split_segmentation/etc/spamcrop.png)
-
-
+![run_merge.sh](split_segmentation/etc/spam.png){:height="50%" width="50%"}
+![run_crop.sh](split_segmentation/etc/crop.png){:height="50%" width="50%"}
+![run_spamcrop.sh](split_segmentation/etc/spamcrop.png){:height="50%" width="50%"}
