@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from PIL import Image, ImageDraw
-from skimage.color import gray2rgb
 from config import Config
 
 ####################################################

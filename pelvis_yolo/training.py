@@ -11,16 +11,17 @@ import numpy as np
 import PIL
 import tensorflow as tf
 
+from keras import backend as K
 from keras import optimizers
 from keras.layers import Input, Lambda, Conv2D
 from keras.models import load_model, Model
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
-from yad2k.models.keras_yolo import preprocess_true_boxes, yolo_body, yolo_loss
+from yad2k.models.keras_yolo import preprocess_true_boxes, yolo_body, yolo_loss, yolo_eval, yolo_head
 from yad2k.models.keras_yolo import metric
+from yad2k.utils.draw_boxes import draw_boxes
 from utils import save_annotation, load_annotation
+from evaluation import IoU
 from config import Config
-
-
 
 ########################################################
 #################### GPU Constraint ####################
@@ -149,7 +150,9 @@ def _main(args):
 
         # Call to train function
         train(
+            data_path,
             model,
+            model_body,
             class_names,
             anchors,
             data_train,
@@ -378,12 +381,13 @@ def create_model(anchors, class_names, freeze_body=True, load_pretrained=True):
 ################### Training functions ###################
 ##########################################################
 
-def train(model, class_names, anchors, data_train, data_val,config,weights_path=None,results_dir='results'):
+def train(data_path,model, model_body, class_names, anchors, data_train, data_val,config,weights_path=None,results_dir='results'):
     ''' Retrains/fine-tune the model.
         Saves the weights every 10 epochs for 200 epochs.
 
     Inputs:
         model: the model as returned by the create_model function.
+        model_body: the model body as returned by the create_model function.
         class_names: the class names as loaded by the get_classes function.
         anchors: a np array containing the anchor boxes dimensions.
         data_train: a list containing all the training input data for the network.
@@ -429,6 +433,9 @@ def train(model, class_names, anchors, data_train, data_val,config,weights_path=
     #checkpoint = ModelCheckpoint("trained_best.h5", monitor='val_loss',save_weights_only=True, save_best_only=True)
     #early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
 
+    # Initializing mean IoU
+    mean_IoU = [0]
+
     # Training for loop
     for stage in range(20):
         # SLaunch training
@@ -444,10 +451,34 @@ def train(model, class_names, anchors, data_train, data_val,config,weights_path=
             pickle.dump(history.history, fp)
         model.save_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
+
+        # Call to predict function
+        w = 'trained_stage_'+str(stage)+'.h5'
+        dir_list = [x for x in sorted(os.listdir(os.path.join(data_path,'val'))) if x.endswith('.jpg')]
+        pred = predict(model_body,
+            class_names,
+            anchors,
+            data_val[0],
+            w,
+            dir_list,
+            non_best_sup=config.NON_BEST_SUP,
+            results_dir=results_dir,
+            save=False,
+            training=True)
+
+        # Call to evaluate function
+        gt = load_annotation(os.path.join(data_path,'val','annotations_val.p'))
+        ratio = (config.INPUT_DIM[0]/config.OUTPUT_DIM[0])
+        iou_stats = IoU(gt,pred,ratio)
+
+        # Appending new mean IoU to list
+        mean_IoU.append(np.mean([item for key,item in iou_stats['mean'].items()]))
+        print('average IoU update : {}'.format(mean_IoU))
+
         # Safety load
         model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
-def train_generator(model, training_generator, validation_generator, train_size, data_shape,class_names, anchors,config,weights_path = None,results_dir='results'):
+def train_generator(model, training_generator, validation_generator, train_size, data_shape, class_names, anchors, config, weights_path=None,results_dir='results'):
     ''' Retrains/fine-tune the model with custom data generator.
         Saves the weights every 10 epochs for 200 epochs.
 
@@ -515,6 +546,102 @@ def train_generator(model, training_generator, validation_generator, train_size,
 
         # Safety load
         model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
+
+
+#########################################################
+######################## Predict ########################
+#########################################################
+
+def predict(model_body, class_names, anchors, image_data, weights_name, dir_list, non_best_sup=False, results_dir='results', save=False, training=False):
+    '''Runs the detection algorithm on image_data.
+
+    Inputs:
+        model_body: the body of the model as returned by the create_model function.
+        class_names: a list containing the class names.
+        anchors: a np array containing the anchor boxes dimension.
+        image_data: np array of shape (#images,side,side,channels) containing the images.
+        dir_list: the image data names' list.
+        weights_name: the name of the weight file that we want to load.
+        non_best_sup: wether or not to perform non best suppression during predictions.
+        results_dir: directory where the results will be saved.
+        save: wether or not to save the output images.
+
+    Returns:
+        boxes_dict: the dictionnary containing the bounding boxes and scores.
+                    boxes_dict = {filename : {'bladder': [[xA,yA,xB,yB,score],[...]],
+                                              'rectum': [..],
+                                              'prostate': [..]},
+                                  filename : {...},...}
+    '''
+
+    # Creating missing directories
+    if  not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    if  not os.path.exists(os.path.join(results_dir,'images')):
+        os.makedirs(os.path.join(results_dir,'images'))
+    if  not os.path.exists(os.path.join(results_dir,'predictions')):
+        os.makedirs(os.path.join(results_dir,'predictions'))
+
+    # Loading image data in the right format
+    image_data = np.array([np.expand_dims(image, axis=0) for image in image_data])
+
+    # Loading weights
+    if training:
+        model_body.load_weights(os.path.join(results_dir,'models',weights_name))
+    else:
+        model_body.load_weights(os.path.join('models',weights_name))
+
+
+    # Create output variables for prediction.
+    yolo_outputs = yolo_head(model_body.output, anchors, len(class_names))
+    input_image_shape = K.placeholder(shape=(2, ))
+    boxes, scores, classes = yolo_eval(yolo_outputs, input_image_shape, score_threshold=0.07, iou_threshold=0.0)
+
+    # Dictionnary to export the predicted bounding boxes
+    boxes_dict = {}
+
+    # Run prediction
+    sess = K.get_session()  # TODO: Remove dependence on Tensorflow session.
+
+    for i in range(len(image_data)):
+        print('predicting boxes for {}'.format(dir_list[i]))
+        out_boxes, out_scores, out_classes = sess.run(
+            [boxes, scores, classes],
+            feed_dict={
+                model_body.input: image_data[i],
+                input_image_shape: [image_data.shape[2], image_data.shape[3]],
+                K.learning_phase(): 0
+            })
+
+        if non_best_sup:
+            (new_out_boxes,new_out_classes,new_out_scores) = non_best_suppression(out_boxes,out_classes,out_scores)
+
+            # Plot image with predicted boxes.
+            if save:
+                image_with_boxes = draw_boxes(image_data[i][0], new_out_boxes, new_out_classes,
+                                        class_names, new_out_scores)
+                image = PIL.Image.fromarray(image_with_boxes)
+                image.save(os.path.join(results_dir,'images',dir_list[i]+'.png'))
+        elif save:
+            # Plot image with predicted boxes.
+            image_with_boxes = draw_boxes(image_data[i][0], out_boxes, out_classes,
+                                        class_names, out_scores)
+            image = PIL.Image.fromarray(image_with_boxes)
+            image.save(os.path.join(results_dir,'images',dir_list[i]+'.png'))
+
+        # Updates dictionnary
+        boxes_dict.update({dir_list[i] : {}})
+        for c in class_names:
+            boxes_dict[dir_list[i]].update({c : []})
+        for j in range(len(out_boxes)):
+            organ = class_names[out_classes[j]]
+            new_box = list(out_boxes[j])
+            new_box.append(out_scores[j])
+            boxes_dict[dir_list[i]][organ].append(new_box)
+
+    # Saving boxes
+    return boxes_dict
+
 
 ############################################
 ################### Main ###################

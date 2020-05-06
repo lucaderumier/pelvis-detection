@@ -12,11 +12,8 @@ import numpy as np
 import PIL
 import matplotlib.pyplot as plt
 
-from keras import backend as K
-from yad2k.models.keras_yolo import yolo_eval, yolo_head
-from yad2k.utils.draw_boxes import draw_boxes
 from utils import save_annotation, load_annotation
-from training import normalize, get_classes, process_data, get_detector_mask, create_model
+from training import normalize, get_classes, process_data, get_detector_mask, create_model, predict
 from config import Config
 
 ########################################################
@@ -177,97 +174,6 @@ def non_best_suppression(boxes,classes,scores):
     new_score = np.asarray(new_score)
 
     return (new_box,new_class,new_score)
-
-
-
-#########################################################
-######################## Predict ########################
-#########################################################
-
-def predict(model_body, class_names, anchors, image_data, weights_name, dir_list, non_best_sup=False, results_dir='results', save=False):
-    '''Runs the detection algorithm on image_data.
-
-    Inputs:
-        model_body: the body of the model as returned by the create_model function.
-        class_names: a list containing the class names.
-        anchors: a np array containing the anchor boxes dimension.
-        image_data: np array of shape (#images,side,side,channels) containing the images.
-        weights_name: the name of the weight file that we want to load.
-        non_best_sup: wether or not to perform non best suppression during predictions.
-        results_dir: directory where the results will be saved.
-        save: wether or not to save the output images.
-
-    Returns:
-        boxes_dict: the dictionnary containing the bounding boxes and scores.
-                    boxes_dict = {filename : {'bladder': [[xA,yA,xB,yB,score],[...]],
-                                              'rectum': [..],
-                                              'prostate': [..]},
-                                  filename : {...},...}
-    '''
-
-    # Creating missing directories
-    if  not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-    if  not os.path.exists(os.path.join(results_dir,'images')):
-        os.makedirs(os.path.join(results_dir,'images'))
-    if  not os.path.exists(os.path.join(results_dir,'predictions')):
-        os.makedirs(os.path.join(results_dir,'predictions'))
-
-    # Loading image data in the right format
-    image_data = np.array([np.expand_dims(image, axis=0) for image in image_data])
-
-    # Loading weights
-    model_body.load_weights(os.path.join('models',weights_name))
-
-    # Create output variables for prediction.
-    yolo_outputs = yolo_head(model_body.output, anchors, len(class_names))
-    input_image_shape = K.placeholder(shape=(2, ))
-    boxes, scores, classes = yolo_eval(yolo_outputs, input_image_shape, score_threshold=0.07, iou_threshold=0.0)
-
-    # Dictionnary to export the predicted bounding boxes
-    boxes_dict = {}
-
-    # Run prediction
-    sess = K.get_session()  # TODO: Remove dependence on Tensorflow session.
-
-    for i in range(len(image_data)):
-        print('predicting boxes for {}'.format(dir_list[i]))
-        out_boxes, out_scores, out_classes = sess.run(
-            [boxes, scores, classes],
-            feed_dict={
-                model_body.input: image_data[i],
-                input_image_shape: [image_data.shape[2], image_data.shape[3]],
-                K.learning_phase(): 0
-            })
-
-        if non_best_sup:
-            (new_out_boxes,new_out_classes,new_out_scores) = non_best_suppression(out_boxes,out_classes,out_scores)
-
-            # Plot image with predicted boxes.
-            if save:
-                image_with_boxes = draw_boxes(image_data[i][0], new_out_boxes, new_out_classes,
-                                        class_names, new_out_scores)
-                image = PIL.Image.fromarray(image_with_boxes)
-                image.save(os.path.join(results_dir,'images',dir_list[i]+'.png'))
-        elif save:
-            # Plot image with predicted boxes.
-            image_with_boxes = draw_boxes(image_data[i][0], out_boxes, out_classes,
-                                        class_names, out_scores)
-            image = PIL.Image.fromarray(image_with_boxes)
-            image.save(os.path.join(results_dir,'images',dir_list[i]+'.png'))
-
-        # Updates dictionnary
-        boxes_dict.update({dir_list[i] : {}})
-        for c in class_names:
-            boxes_dict[dir_list[i]].update({c : []})
-        for j in range(len(out_boxes)):
-            organ = class_names[out_classes[j]]
-            new_box = list(out_boxes[j])
-            new_box.append(out_scores[j])
-            boxes_dict[dir_list[i]][organ].append(new_box)
-
-    # Saving boxes
-    return boxes_dict
 
 
 ############################################

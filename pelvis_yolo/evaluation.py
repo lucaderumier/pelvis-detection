@@ -7,7 +7,7 @@ Version 1.0 - May 2020.
 import argparse
 import os
 import numpy as np
-import imageio
+#import imageio
 import pickle
 
 from config import Config
@@ -86,7 +86,7 @@ def _main(args):
     # Writing directories to a file
     f = open(os.path.join(results_dir,'stats','stats.txt'),'w+')
     f.write('{}\n\n'.format(found_stats))
-    f.write('mean : {}\n variance :\n\n'.format(iou_stats['mean'],iou_stats['variance']))
+    f.write('mean : {}\n variance : {}\n\n'.format(iou_stats['mean'],iou_stats['variance']))
     f.write('{}\n\n'.format(classification_stats))
     f.write('{}\n\n'.format(cases_stats))
     f.close()
