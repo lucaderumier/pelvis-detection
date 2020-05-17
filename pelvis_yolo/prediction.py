@@ -16,13 +16,6 @@ from utils import save_annotation, load_annotation
 from training import normalize, get_classes, process_data, get_detector_mask, create_model, predict
 from config import Config
 
-########################################################
-#################### GPU Constraint ####################
-########################################################
-
-gpu = 3
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
-
 #########################################################
 ################### Parsing arguments ###################
 #########################################################

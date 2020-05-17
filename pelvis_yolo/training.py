@@ -9,7 +9,9 @@ import os
 import pickle
 import numpy as np
 import PIL
+import re
 import tensorflow as tf
+
 
 from keras import backend as K
 from keras import optimizers
@@ -22,13 +24,6 @@ from yad2k.utils.draw_boxes import draw_boxes
 from utils import save_annotation, load_annotation
 from evaluation import IoU
 from config import Config
-
-########################################################
-#################### GPU Constraint ####################
-########################################################
-
-gpu = 3
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
 
 #########################################################
 ################### Parsing arguments ###################
@@ -86,6 +81,12 @@ argparser.add_argument(
     help="enables custom data generator instead of keras'.",
     action='store_true')
 
+argparser.add_argument(
+    '-gpu',
+    '--gpu',
+    help="GPU on which to train the model.",
+    default='3')
+
 ########################################################
 ######################### Main #########################
 ########################################################
@@ -100,6 +101,7 @@ def _main(args):
     classes = args.classes
     weights = args.weights
     gen = args.generator
+    gpu = args.gpu
 
     # Computed arguments
     data_path_train = os.path.join(data_path,'train',training_file)
@@ -159,7 +161,8 @@ def _main(args):
             data_val,
             config,
             weights_path=weights_path,
-            results_dir=results_dir
+            results_dir=results_dir,
+            gpu=gpu
         )
     else:
         # Import generators
@@ -192,7 +195,8 @@ def _main(args):
             anchors,
             config,
             weights_path=weights_path,
-            results_dir=results_dir
+            results_dir=results_dir,
+            gpu=gpu
         )
 
 
@@ -381,9 +385,9 @@ def create_model(anchors, class_names, freeze_body=True, load_pretrained=True):
 ################### Training functions ###################
 ##########################################################
 
-def train(data_path,model, model_body, class_names, anchors, data_train, data_val,config,weights_path=None,results_dir='results'):
+def train(data_path,model, model_body, class_names, anchors, data_train, data_val,config,weights_path=None,results_dir='results',gpu='3'):
     ''' Retrains/fine-tune the model.
-        Saves the weights every 10 epochs for 200 epochs.
+        Saves the weights every 10 epochs for 1000 epochs.
 
     Inputs:
         model: the model as returned by the create_model function.
@@ -427,6 +431,10 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
 
     if weights_path is not None:
         model.load_weights(weights_path)
+        basename = os.path.basename(weights_path)
+        load_stage = int(re.findall('\d+', basename)[0])
+    else:
+        load_stage = -1
 
     # Callbacks
     logging = tf.keras.callbacks.TensorBoard()
@@ -434,11 +442,15 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
     #early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
 
     # Initializing mean IoU
-    mean_IoU = [0]
+    if(load_stage == 0):
+        mean_IoU = [0]
+    else:
+        mean_IoU = []
 
     # Training for loop
-    for stage in range(20):
-        # SLaunch training
+    for stage in range(load_stage+1,100):
+        print('STAGE : {}'.format(stage))
+        # Launch training
         history = model.fit(data_train,
                       np.zeros(len(data_train[0])),
                       validation_data=(data_val,np.zeros(len(data_val[0]))),
@@ -478,7 +490,7 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
         # Safety load
         model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
-def train_generator(model, training_generator, validation_generator, train_size, data_shape, class_names, anchors, config, weights_path=None,results_dir='results'):
+def train_generator(model, training_generator, validation_generator, train_size, data_shape, class_names, anchors, config, weights_path=None,results_dir='results',gpu='3'):
     ''' Retrains/fine-tune the model with custom data generator.
         Saves the weights every 10 epochs for 200 epochs.
 
@@ -649,4 +661,16 @@ def predict(model_body, class_names, anchors, image_data, weights_name, dir_list
 
 if __name__ == '__main__':
     args = argparser.parse_args()
+
+    ########################################################
+    #################### GPU Constraint ####################
+    ########################################################
+
+    gpu = args.gpu
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu
+
+    ######################################################
+    #################### Call to main ####################
+    ######################################################
+
     _main(args)

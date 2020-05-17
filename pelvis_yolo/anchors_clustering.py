@@ -17,13 +17,6 @@ import matplotlib.pyplot as plt
 from config import Config
 from utils import load_annotation,save_annotation
 
-########################################################
-#################### GPU Constraint ####################
-########################################################
-
-gpu = 3
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
-
 
 #########################################################
 ################### Parsing arguments ###################

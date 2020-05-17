@@ -3,6 +3,7 @@ import sys
 
 import numpy as np
 import tensorflow as tf
+import os
 from keras import backend as K
 from keras.layers import Lambda
 from keras.layers.merge import concatenate
@@ -14,9 +15,11 @@ from .keras_darknet19 import (DarknetConv2D, DarknetConv2D_BN_Leaky,
 
 sys.path.append('..')
 
+# never used
 voc_anchors = np.array(
     [[1.08, 1.19], [3.42, 4.41], [6.63, 11.38], [9.42, 5.11], [16.62, 10.52]])
 
+# never used
 voc_classes = [
     "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat",
     "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person",
@@ -24,9 +27,9 @@ voc_classes = [
 ]
 
 # CONFIGURATION PARAMETERS
-LAMBDA_OBJ = 2
+LAMBDA_OBJ = 5
 LAMBDA_CLASS = 1
-LAMBDA_COORD= 5
+LAMBDA_COORD =  10
 LAMBDA_NOOBJ = 1
 
 def space_to_depth_x2(x):
@@ -34,7 +37,7 @@ def space_to_depth_x2(x):
     # Import currently required to make Lambda work.
     # See: https://github.com/fchollet/keras/issues/5088#issuecomment-273851273
     import tensorflow as tf
-    return tf.space_to_depth(x, block_size=2)
+    return tf.nn.space_to_depth(x, block_size=2)
 
 
 def space_to_depth_x2_output_shape(input_shape):
@@ -462,9 +465,14 @@ class metric():
         self.iou_threshold = iou_threshold
         self.rescore_confidence = rescore_confidence
 
+    def IoU_test():
+        (yolo_output,true_boxes, detectors_mask, matching_true_boxes) = self.args
+        yolo_outputs = yolo_head(yolo_output, self.anchors, len(self.class_names))
+        boxes, scores, classes = yolo_eval(
+            yolo_outputs, [self.image_data_shape[1],self.image_data_shape[2]], score_threshold=0.07, iou_threshold=0.0)
 
     def yolo_loss(self,y_true,y_pred):
-        '''IoU metric'''
+        '''yolo_loss'''
         (yolo_output,true_boxes, detectors_mask, matching_true_boxes) = self.args
 
         num_anchors = len(self.anchors)
@@ -565,6 +573,19 @@ class metric():
         matching_boxes = matching_true_boxes[..., 0:4]
         coordinates_loss = (coordinates_scale * detectors_mask *
                             K.square(matching_boxes - pred_boxes))
+
+        # w,h  -> sqrt(w,h)
+        '''
+        norm_matching_boxes =  K.concatenate(
+            (matching_boxes[..., 0:2], K.sqrt(matching_boxes[..., 2:4])), axis=-1)
+        norm_pred_boxes =  K.concatenate(
+            (pred_boxes[..., 0:2], K.sqrt(pred_boxes[..., 2:4])), axis=-1)
+        coordinates_loss = (coordinates_scale * detectors_mask *
+                            K.square(norm_matching_boxes - norm_pred_boxes))
+        '''
+
+
+
 
         confidence_loss_sum = K.sum(confidence_loss)
         classification_loss_sum = K.sum(classification_loss)
