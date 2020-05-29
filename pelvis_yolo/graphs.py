@@ -59,10 +59,13 @@ def _main(args):
 
     # Plotting part
     epochs = [(x+1)*config.EPOCHS for x in sorted(stages)]
-    #plot_iou(iou,epochs,data_path,save=False)
-    plot_iou(iou,epochs,data_path,save=True)
+    plot_iou(iou,epochs,data_path,save=False)
+    #plot_iou(iou,epochs,data_path,save=True)
     #plot_stats(stats,epochs,data_path,save=False)
-    plot_stats(stats,epochs,data_path,save=True)
+    #plot_stats(stats,epochs,data_path,save=True)
+    plot_single_stat(stats,epochs,data_path,'P',save=False)
+    plot_single_stat(stats,epochs,data_path,'R',save=False)
+    plot_single_stat(stats,epochs,data_path,'FNR',save=False)
 
 ####################################################
 ################## Plot functions ##################
@@ -113,6 +116,66 @@ def plot_stats(stats,epochs,data_path,save=False):
         generic_graph([fnrate[0],fnrate[1]],[fnrate_var[0],fnrate_var[1]],epochs,['training false negative rate','validation false negative rate'],ylabel='false negative rate',title='Training vs Validation False Negative Rate')
 
 
+
+def plot_single_stat(stats,epochs,data_path,observed_stat,save=False):
+    '''Plots the precision graphs for the sets (training, validation at least)
+       along with precision for all organs separately.
+
+    Inputs:
+        stats: a dictionnary that contains the stats.
+            stats = {'train' : { 0 : {'bladder' : {'P' : {'mean' : .. 'variance' : ...} , 'R' : {...}},
+                                     'rectum' : ...},
+                               1 : {....}, ..}
+                    'val' : .... }
+        observed_stat: the observed statistic, either 'P' for precision, 'R' for recall or 'FNR' for false negative rate.
+    '''
+    # Defining arrays for mean and variance of each organs and sets. shape = (#sets,#epochs)
+    if(observed_stat == 'P'):
+        stat_string = 'precision'
+    elif(observed_stat == 'R'):
+        stat_string = 'recall'
+    elif(observed_stat == 'FNR'):
+        stat_string = 'false negative rate'
+    else:
+        raise ValueError('unexpected statistic to plot.')
+
+
+    bladder_mean = np.zeros((len(stats),len(epochs)))
+    bladder_var = np.zeros((len(stats),len(epochs)))
+    rectum_mean = np.zeros((len(stats),len(epochs)))
+    rectum_var = np.zeros((len(stats),len(epochs)))
+    prostate_mean = np.zeros((len(stats),len(epochs)))
+    prostate_var = np.zeros((len(stats),len(epochs)))
+    total_mean = np.zeros((len(stats),len(epochs)))
+    total_var = np.zeros((len(stats),len(epochs)))
+
+    for set,stages in stats.items():
+        if set == 'train':
+            i = 0
+        elif set == 'val':
+            i = 1
+        else:
+            raise ValueError('unexpected set value.')
+        for stage in stages.keys():
+            bladder_mean[i][stage] = nan_to_x(stages[stage]['bladder'][observed_stat]['mean'],x=(observed_stat=='FNR'))
+            bladder_var[i][stage] = nan_to_x(stages[stage]['bladder'][observed_stat]['variance'])
+            rectum_mean[i][stage] = nan_to_x(stages[stage]['rectum'][observed_stat]['mean'],x=(observed_stat=='FNR'))
+            rectum_var[i][stage] = nan_to_x(stages[stage]['rectum'][observed_stat]['variance'])
+            prostate_mean[i][stage] = nan_to_x(stages[stage]['prostate'][observed_stat]['mean'],x=(observed_stat=='FNR'))
+            prostate_var[i][stage] = nan_to_x(stages[stage]['prostate'][observed_stat]['variance'])
+            total_mean[i][stage] = (bladder_mean[i][stage]+rectum_mean[i][stage]+prostate_mean[i][stage])/3
+            total_var[i][stage] = (bladder_var[i][stage]+rectum_var[i][stage]+prostate_var[i][stage])/3
+
+    path = os.path.join(data_path,'graphs')
+
+    if save:
+        generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],ylabel=stat_string,title='Training vs Validation '+stat_string,save=True,path=os.path.join(path,'iou_tvsv.png'))
+        generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Training '+stat_string,save=True,path=os.path.join(path,observed_stat+'_training_all.png'))
+        generic_graph([bladder_mean[1],rectum_mean[1],prostate_mean[1]],[bladder_var[1],rectum_var[1],prostate_var[1]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Validation '+stat_string,save=True,path=os.path.join(path,observed_stat+'_validation_all.png'))
+    else:
+        generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],ylabel=stat_string,title='Training vs Validation '+stat_string)
+        generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Training '+stat_string)
+        generic_graph([bladder_mean[1],rectum_mean[1],prostate_mean[1]],[bladder_var[1],rectum_var[1],prostate_var[1]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Validation '+stat_string)
 
 
 

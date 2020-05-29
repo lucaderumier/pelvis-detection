@@ -29,7 +29,7 @@ class Config():
     NON_BEST_SUP = False
 
     # Learning rate
-    LEARNING_RATE = 0.0001
+    LEARNING_RATE = 0.001
 
     # Batch size
     BATCH_SIZE = 32
@@ -46,7 +46,6 @@ class Config():
         ((6.13000678, 4.92235932), (2.3183523, 2.56730623), (1.43822055, 1.44648445),
          (4.31028148, 3.67089778), (2.39533622, 5.34201443)))
     '''
-
 
     # Input/Output ratio size
     INPUT_DIM = (500,500)

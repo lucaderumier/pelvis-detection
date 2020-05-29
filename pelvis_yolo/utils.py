@@ -9,7 +9,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageEnhance
 from config import Config
 
 ####################################################
@@ -118,7 +118,7 @@ def nan_to_x(number,x=0):
 ################### Visualization ###################
 #####################################################
 
-def draw_bb(im_path,bb,to_draw=['bladder','rectum','prostate'],colors=['green','red','blue','yellow'],save=False,results_path='',rescale=False,ratio=500/416):
+def draw_bb(im_path,bb,to_draw=['bladder','rectum','prostate'],colors=['darkgreen','red','blue','yellow'],save=False,results_path='',rescale=False,ratio=500/416):
     '''Draws boudning boxes on image.
 
     Inputs:
@@ -154,17 +154,22 @@ def draw_bb(im_path,bb,to_draw=['bladder','rectum','prostate'],colors=['green','
     # Extracts the image name
     name = os.path.basename(im_path)
 
+    # Image brightness enhancer
+    enhancer = ImageEnhance.Contrast(im)
+    factor = 2.5
+    im_output = enhancer.enhance(factor)
+
     if save:
         if rescale:
-            im.save(os.path.join(results_path,name.replace('.jpg','-pred.jpg')))
+            im_output.save(os.path.join(results_path,name.replace('.jpg','-pred.jpg')),quality=90)
         else:
-            im.save(os.path.join(results_path,name.replace('.jpg','-bb.jpg')))
+            im_output.save(os.path.join(results_path,name.replace('.jpg','-bb.jpg')),quality=90)
     else:
         im.show()
 
     del draw
 
-def over_draw(im_path,bb_gt,bb_pred,to_draw=['bladder','rectum','prostate'],colors_gt=['green','red','blue','yellow'],colors_pred=['lime','deeppink','cyan','gold'],save=False,results_path='',ratio=500/416):
+def over_draw(im_path,bb_gt,bb_pred,to_draw=['bladder','rectum','prostate'],colors_gt=['darkgreen','red','blue','yellow'],colors_pred=['lime','deeppink','cyan','gold'],save=False,results_path='',ratio=500/416):
     '''Draws both prediction and ground truth bounding boxes on image.
 
     Inputs:
@@ -200,8 +205,14 @@ def over_draw(im_path,bb_gt,bb_pred,to_draw=['bladder','rectum','prostate'],colo
     # Extracts the image name
     name = os.path.basename(im_path)
 
+    # Image brightness enhancer
+    enhancer = ImageEnhance.Contrast(im)
+    factor = 2.5
+    im_output = enhancer.enhance(factor)
+
     if save:
-        im.save(os.path.join(results_path,name.replace('.jpg','-over.jpg')))
+        im_output.save(os.path.join(results_path,name.replace('.jpg','-over.jpg')),quality=90)
+        #im.save(os.path.join(results_path,name.replace('.jpg','-over.jpg')),quality=90)
     else:
         im.show()
 
@@ -256,7 +267,7 @@ def generic_graph(data,var,epochs,legend,ylabel='IoU',title='IoU',save=False,pat
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel('epoch')
-    plt.legend(legend, loc='upper right')
+    plt.legend(legend)
     if save:
         plt.savefig(path,dpi=1200)
     else:
