@@ -104,8 +104,8 @@ def _main(args):
         legend = ['loss (total)', 'classification loss','coordinates loss','confidence loss']
         save = True
         for i in range(len(metrics)):
-            learning_graph(history,[metrics[i],'val_'+metrics[i]],['training '+legend[i],'validation '+legend[i] ],save=save,path=os.path.join(graphs_dir,metrics[i]+'_lin.png'),scale='linear')
-            learning_graph(history,[metrics[i],'val_'+metrics[i]],['training '+legend[i],'validation '+legend[i] ],save=save,path=os.path.join(graphs_dir,metrics[i]+'_log.png'),scale='log')
+            learning_graph(history,[metrics[i],'val_'+metrics[i]],['training '+legend[i],'validation '+legend[i] ],save=save,path=os.path.join(graphs_dir,metrics[i]+'_lin.pdf'),scale='linear')
+            learning_graph(history,[metrics[i],'val_'+metrics[i]],['training '+legend[i],'validation '+legend[i] ],save=save,path=os.path.join(graphs_dir,metrics[i]+'_log.pdf'),scale='log')
 
 
 

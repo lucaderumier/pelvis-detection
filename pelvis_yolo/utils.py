@@ -222,7 +222,7 @@ def over_draw(im_path,bb_gt,bb_pred,to_draw=['bladder','rectum','prostate'],colo
 ################### Graphs ###################
 ##############################################
 
-def learning_graph(history,metrics,legend,save=False,path='history.png',scale='linear'):
+def learning_graph(history,metrics,legend,colors = ['mediumpurple','darkorange'],save=False,path='history.pdf',scale='linear'):
     '''Plots the learning graph's metrics.
 
     Inputs:
@@ -233,15 +233,17 @@ def learning_graph(history,metrics,legend,save=False,path='history.png',scale='l
         path: the path to the file to be saved.
         scale: the scale of the y values.
     '''
-
+    i = 0
     for m in metrics:
-        plt.plot(history[m])
+        plt.plot(history[m],color = colors[i],linewidth=0.7)
+        i += 1
 
     plt.title('Learning graph')
     plt.ylabel('loss')
     plt.yscale(scale)
     plt.xlabel('epoch')
     plt.legend(legend, loc='upper right')
+    plt.grid(True)
     if save:
         plt.savefig(path)
     else:
@@ -249,7 +251,7 @@ def learning_graph(history,metrics,legend,save=False,path='history.png',scale='l
 
     plt.close()
 
-def generic_graph(data,var,epochs,legend,ylabel='IoU',title='IoU',save=False,path='iou.png'):
+def generic_graph(data,var,epochs,legend,colors = ['forestgreen','firebrick','royalblue'],ylabel='IoU',title='IoU',save=False,path='iou.png'):
     '''Plots some data metric.
 
     Inputs:
@@ -261,13 +263,16 @@ def generic_graph(data,var,epochs,legend,ylabel='IoU',title='IoU',save=False,pat
         save: wether to save the plot or not.
         path: the path to the file to be saved.
     '''
+    if(len(data) < 3):
+        colors = ['mediumpurple','darkorange']
     for i in range(len(data)):
-        plt.errorbar(epochs,data[i],var[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
+        plt.errorbar(epochs,data[i],var[i],color = colors[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
 
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel('epoch')
     plt.legend(legend)
+    plt.grid(True)
     if save:
         plt.savefig(path,dpi=1200)
     else:
