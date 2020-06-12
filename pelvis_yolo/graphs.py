@@ -59,13 +59,13 @@ def _main(args):
 
     # Plotting part
     epochs = [(x+1)*config.EPOCHS for x in sorted(stages)]
-    plot_iou(iou,epochs,data_path,save=False)
+    plot_iou(iou,epochs,data_path,save=True)
     #plot_iou(iou,epochs,data_path,save=True)
     #plot_stats(stats,epochs,data_path,save=False)
     #plot_stats(stats,epochs,data_path,save=True)
-    plot_single_stat(stats,epochs,data_path,'P',save=False)
-    plot_single_stat(stats,epochs,data_path,'R',save=False)
-    plot_single_stat(stats,epochs,data_path,'FNR',save=False)
+    plot_single_stat(stats,epochs,data_path,'P',save=True)
+    plot_single_stat(stats,epochs,data_path,'R',save=True)
+    plot_single_stat(stats,epochs,data_path,'FNR',save=True)
 
 ####################################################
 ################## Plot functions ##################
@@ -73,7 +73,6 @@ def _main(args):
 
 def plot_stats(stats,epochs,data_path,save=False):
     '''Plots the precision, recall and false negative rate graphs for the sets (training, validation at least).
-
     Inputs:
         stats: a dictionnary that contains the stats.
             stats = {'train' : { 0 : {'bladder' : {'P' : {'mean' : .. 'variance' : ...} , 'R' : {...}},
@@ -129,6 +128,15 @@ def plot_single_stat(stats,epochs,data_path,observed_stat,save=False):
                     'val' : .... }
         observed_stat: the observed statistic, either 'P' for precision, 'R' for recall or 'FNR' for false negative rate.
     '''
+    bladder_mean = np.zeros((2,len(epochs)+1))
+    bladder_var = np.zeros((2,len(epochs)+1))
+    rectum_mean = np.zeros((2,len(epochs)+1))
+    rectum_var = np.zeros((2,len(epochs)+1))
+    prostate_mean = np.zeros((2,len(epochs)+1))
+    prostate_var = np.zeros((2,len(epochs)+1))
+    total_mean = np.zeros((2,len(epochs)+1))
+    total_var = np.zeros((2,len(epochs)+1))
+
     # Defining arrays for mean and variance of each organs and sets. shape = (#sets,#epochs)
     if(observed_stat == 'P'):
         stat_string = 'precision'
@@ -136,18 +144,11 @@ def plot_single_stat(stats,epochs,data_path,observed_stat,save=False):
         stat_string = 'recall'
     elif(observed_stat == 'FNR'):
         stat_string = 'false negative rate'
+        bladder_mean[1][0] = 1
+        rectum_mean[1][0] = 1
+        prostate_mean[1][0] = 1
     else:
         raise ValueError('unexpected statistic to plot.')
-
-
-    bladder_mean = np.zeros((len(stats),len(epochs)))
-    bladder_var = np.zeros((len(stats),len(epochs)))
-    rectum_mean = np.zeros((len(stats),len(epochs)))
-    rectum_var = np.zeros((len(stats),len(epochs)))
-    prostate_mean = np.zeros((len(stats),len(epochs)))
-    prostate_var = np.zeros((len(stats),len(epochs)))
-    total_mean = np.zeros((len(stats),len(epochs)))
-    total_var = np.zeros((len(stats),len(epochs)))
 
     for set,stages in stats.items():
         if set == 'train':
@@ -157,21 +158,24 @@ def plot_single_stat(stats,epochs,data_path,observed_stat,save=False):
         else:
             raise ValueError('unexpected set value.')
         for stage in stages.keys():
-            bladder_mean[i][stage] = nan_to_x(stages[stage]['bladder'][observed_stat]['mean'],x=(observed_stat=='FNR'))
-            bladder_var[i][stage] = nan_to_x(stages[stage]['bladder'][observed_stat]['variance'])
-            rectum_mean[i][stage] = nan_to_x(stages[stage]['rectum'][observed_stat]['mean'],x=(observed_stat=='FNR'))
-            rectum_var[i][stage] = nan_to_x(stages[stage]['rectum'][observed_stat]['variance'])
-            prostate_mean[i][stage] = nan_to_x(stages[stage]['prostate'][observed_stat]['mean'],x=(observed_stat=='FNR'))
-            prostate_var[i][stage] = nan_to_x(stages[stage]['prostate'][observed_stat]['variance'])
-            total_mean[i][stage] = (bladder_mean[i][stage]+rectum_mean[i][stage]+prostate_mean[i][stage])/3
-            total_var[i][stage] = (bladder_var[i][stage]+rectum_var[i][stage]+prostate_var[i][stage])/3
+            bladder_mean[i][stage+1] = nan_to_x(stages[stage]['bladder'][observed_stat]['mean'],x=(observed_stat=='FNR'))
+            bladder_var[i][stage+1] = nan_to_x(stages[stage]['bladder'][observed_stat]['variance'])
+            rectum_mean[i][stage+1] = nan_to_x(stages[stage]['rectum'][observed_stat]['mean'],x=(observed_stat=='FNR'))
+            rectum_var[i][stage+1] = nan_to_x(stages[stage]['rectum'][observed_stat]['variance'])
+            prostate_mean[i][stage+1] = nan_to_x(stages[stage]['prostate'][observed_stat]['mean'],x=(observed_stat=='FNR'))
+            prostate_var[i][stage+1] = nan_to_x(stages[stage]['prostate'][observed_stat]['variance'])
+            total_mean[i][stage+1] = (bladder_mean[i][stage]+rectum_mean[i][stage]+prostate_mean[i][stage])/3
+            total_var[i][stage+1] = (bladder_var[i][stage]+rectum_var[i][stage]+prostate_var[i][stage])/3
 
     path = os.path.join(data_path,'graphs')
+    epochs = [0] + list(epochs)
+
+
 
     if save:
-        generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],ylabel=stat_string,title='Training vs Validation '+stat_string,save=True,path=os.path.join(path,'iou_tvsv.png'))
-        generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Training '+stat_string,save=True,path=os.path.join(path,observed_stat+'_training_all.png'))
-        generic_graph([bladder_mean[1],rectum_mean[1],prostate_mean[1]],[bladder_var[1],rectum_var[1],prostate_var[1]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Validation '+stat_string,save=True,path=os.path.join(path,observed_stat+'_validation_all.png'))
+        #generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],ylabel=stat_string,title='Training vs Validation '+stat_string,save=True,path=os.path.join(path,'iou_tvsv.png'))
+        #generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Training '+stat_string,save=True,path=os.path.join(path,observed_stat+'_training_all.pdf'))
+        generic_graph([bladder_mean[1],rectum_mean[1],prostate_mean[1]],[bladder_var[1],rectum_var[1],prostate_var[1]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Validation '+stat_string,save=True,path=os.path.join(path,observed_stat+'_validation_all.pdf'))
     else:
         generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],ylabel=stat_string,title='Training vs Validation '+stat_string)
         generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],ylabel=stat_string,title='Training '+stat_string)
@@ -191,14 +195,14 @@ def plot_iou(iou,epochs,data_path,save=False):
                     'val' : .... }
     '''
     # Defining arrays for mean and variance of each organs and sets.
-    bladder_mean = np.zeros((len(iou),len(epochs)))
-    bladder_var = np.zeros((len(iou),len(epochs)))
-    rectum_mean = np.zeros((len(iou),len(epochs)))
-    rectum_var = np.zeros((len(iou),len(epochs)))
-    prostate_mean = np.zeros((len(iou),len(epochs)))
-    prostate_var = np.zeros((len(iou),len(epochs)))
-    total_mean = np.zeros((len(iou),len(epochs)))
-    total_var = np.zeros((len(iou),len(epochs)))
+    bladder_mean = np.zeros((2,len(epochs)+1))
+    bladder_var = np.zeros((2,len(epochs)+1))
+    rectum_mean = np.zeros((2,len(epochs)+1))
+    rectum_var = np.zeros((2,len(epochs)+1))
+    prostate_mean = np.zeros((2,len(epochs)+1))
+    prostate_var = np.zeros((2,len(epochs)+1))
+    total_mean = np.zeros((2,len(epochs)+1))
+    total_var = np.zeros((2,len(epochs)+1))
 
     for set,stages in iou.items():
         if set == 'train':
@@ -207,22 +211,24 @@ def plot_iou(iou,epochs,data_path,save=False):
             i = 1
         else:
             raise ValueError('unexpected set value.')
+
         for stage in stages.keys():
-            bladder_mean[i][stage] = nan_to_x(stages[stage]['mean']['bladder'])
-            bladder_var[i][stage] = nan_to_x(stages[stage]['variance']['bladder'])
-            rectum_mean[i][stage] = nan_to_x(stages[stage]['mean']['rectum'])
-            rectum_var[i][stage] = nan_to_x(stages[stage]['variance']['rectum'])
-            prostate_mean[i][stage] = nan_to_x(stages[stage]['mean']['prostate'])
-            prostate_var[i][stage] = nan_to_x(stages[stage]['variance']['prostate'])
-            total_mean[i][stage] = (bladder_mean[i][stage]+rectum_mean[i][stage]+prostate_mean[i][stage])/3
-            total_var[i][stage] = (bladder_var[i][stage]+rectum_var[i][stage]+prostate_var[i][stage])/3
+            bladder_mean[i][stage+1] = nan_to_x(stages[stage]['mean']['bladder'])
+            bladder_var[i][stage+1] = nan_to_x(stages[stage]['variance']['bladder'])
+            rectum_mean[i][stage+1] = nan_to_x(stages[stage]['mean']['rectum'])
+            rectum_var[i][stage+1] = nan_to_x(stages[stage]['variance']['rectum'])
+            prostate_mean[i][stage+1] = nan_to_x(stages[stage]['mean']['prostate'])
+            prostate_var[i][stage+1] = nan_to_x(stages[stage]['variance']['prostate'])
+            total_mean[i][stage+1] = (bladder_mean[i][stage]+rectum_mean[i][stage]+prostate_mean[i][stage])/3
+            total_var[i][stage+1] = (bladder_var[i][stage]+rectum_var[i][stage]+prostate_var[i][stage])/3
 
     path = os.path.join(data_path,'graphs')
+    epochs = [0] + list(epochs)
 
     if save:
-        generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],title='Training vs Validation IoU',save=True,path=os.path.join(path,'iou_tvsv.png'))
-        generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],title='Training IoU',save=True,path=os.path.join(path,'iou_training_all.png'))
-        generic_graph([bladder_mean[1],rectum_mean[1],prostate_mean[1]],[bladder_var[1],rectum_var[1],prostate_var[1]],epochs,['bladder','rectum','prostate'],title='Validation  IoU',save=True,path=os.path.join(path,'iou_validation_all.png'))
+        #generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],title='Training vs Validation IoU',save=True,path=os.path.join(path,'iou_tvsv.pdf'))
+        #generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],title='Training IoU',save=True,path=os.path.join(path,'iou_training_all.pdf'))
+        generic_graph([bladder_mean[1],rectum_mean[1],prostate_mean[1]],[bladder_var[1],rectum_var[1],prostate_var[1]],epochs,['bladder','rectum','prostate'],title='Validation  IoU',save=True,path=os.path.join(path,'iou_validation_all.pdf'))
     else:
         generic_graph([total_mean[0],total_mean[1]],[total_var[0],total_var[1]],epochs,['training mean','validation mean'],title='Training vs Validation IoU')
         generic_graph([bladder_mean[0],rectum_mean[0],prostate_mean[0]],[bladder_var[0],rectum_var[0],prostate_var[0]],epochs,['bladder','rectum','prostate'],title='Training IoU')

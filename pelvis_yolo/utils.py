@@ -8,6 +8,7 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams.update({'font.size': 13})
 
 from PIL import Image, ImageDraw, ImageEnhance
 from config import Config
@@ -39,7 +40,7 @@ def compute_IoU(box1,box2):
     BoxTrueArea = (box1[2]-box1[0])*(box1[3]-box1[1])
     BoxPredArea = (box2[2]-box2[0])*(box2[3]-box2[1])
     assert BoxTrueArea > 0
-    assert BoxPredArea > 0
+    assert BoxPredArea >= 0
     iou = interArea / (BoxTrueArea + BoxPredArea - interArea)
     return iou
 
@@ -238,14 +239,14 @@ def learning_graph(history,metrics,legend,colors = ['mediumpurple','darkorange']
         plt.plot(history[m],color = colors[i],linewidth=0.7)
         i += 1
 
-    plt.title('Learning graph')
+    #plt.title('Learning graph')
     plt.ylabel('loss')
     plt.yscale(scale)
     plt.xlabel('epoch')
     plt.legend(legend, loc='upper right')
     plt.grid(True)
     if save:
-        plt.savefig(path)
+        plt.savefig(path,bbox_inches='tight')
     else:
         plt.show()
 
@@ -266,12 +267,18 @@ def generic_graph(data,var,epochs,legend,colors = ['forestgreen','firebrick','ro
     if(len(data) < 3):
         colors = ['mediumpurple','darkorange']
     for i in range(len(data)):
-        plt.errorbar(epochs,data[i],var[i],color = colors[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
+        #plt.errorbar(epochs,data[i],var[i],color = colors[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
+        plt.errorbar(epochs,data[i],[np.sqrt(x) for x in var[i]],color = colors[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
 
-    plt.title(title)
+
+    #plt.plot([100],data[0][10],'s',color = 'gold', label = 'final model',markerfacecolor='none')
+    #plt.plot([100],data[1][10],'s',color = 'gold',markerfacecolor='none')
+    #plt.plot([100],data[2][10],'s',color = 'gold',markerfacecolor='none')
+    #plt.axvline(x=100, color='violet', label = 'best model',linestyle='-',)
+    #plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel('epoch')
-    plt.legend(legend)
+    plt.legend()
     plt.grid(True)
     if save:
         plt.savefig(path,dpi=1200)
@@ -280,6 +287,39 @@ def generic_graph(data,var,epochs,legend,colors = ['forestgreen','firebrick','ro
 
     plt.close()
 
+def extract_graph(data,var,factors,legend,colors,ylabel='',title='',save=False,path='extract.pdf',mem_lines=False):
+    '''Plots some data metric.
+
+    Inputs:
+        data: list of data.
+        var: variance of data.
+        factors: list of corresponding scaling factors.
+        color: colors of the curves.
+        legend: the legend of the plot.
+        ylabel: y axis label.
+        title: title of the graph.
+        save: wether to save the plot or not.
+        path: the path to the file to be saved.
+    '''
+    for i in range(len(data)):
+        plt.errorbar(factors,data[i],var[i],color = colors[i],label = legend[i],capsize=1,linewidth=0.7, elinewidth=0.5,marker='.')
+
+    plt.title(title)
+    plt.ylabel(ylabel)
+    plt.xlabel('scaling factor')
+
+    if mem_lines:
+        plt.axhline(y=3.12, color='steelblue', label = 'Image goal',linestyle='--',)
+        plt.axhline(y=9.38, color='firebrick',label = 'Mask goal', linestyle='--')
+
+    plt.legend()
+    plt.grid(True)
+    if save:
+        plt.savefig(path,dpi=1200)
+    else:
+        plt.show()
+
+    plt.close()
 
 #############################################
 ################### Files ###################

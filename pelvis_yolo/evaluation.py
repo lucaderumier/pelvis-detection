@@ -231,7 +231,7 @@ def IoU(gt,pred,ratio):
     all_IoU.update({'mean' : {}, 'variance' : {}})
     for organ in IoU.keys():
         all_IoU['mean'].update({organ : np.mean(IoU[organ])})
-        all_IoU['variance'].update({organ : np.var(IoU[organ])})
+        all_IoU['variance'].update({organ : np.std(IoU[organ])})
 
     return all_IoU
 
@@ -294,7 +294,7 @@ def classification(gt,pred,input_dim,ratio):
 
     for organ,classes in classification.items():
         for c in classes.keys():
-            classification_stats[organ][c].update({ 'mean' : np.mean(classification[organ][c]), 'variance' : np.var(classification[organ][c])})
+            classification_stats[organ][c].update({ 'mean' : np.mean(classification[organ][c]), 'variance' : np.std(classification[organ][c])})
 
     return classification_stats
 
@@ -304,7 +304,7 @@ def cases(IoU,tolerance = 0.1,bad_thresh = 0.35):
     Inputs:
         IoU: a dictionnary tht contains the IoU data as returned from the IoU function.
         tolerance: the tolerance for accepting an average case. average+-(var+tolerance) is considered an average case.
-        bad_tresh: threshold for considering a bad case. bad case < average-bad_thresh.
+        bad_thresh: threshold for considering a bad case. bad case < average-bad_thresh.
 
     Returns:
         cases: a dictionnary that contains the average and bad cases names.

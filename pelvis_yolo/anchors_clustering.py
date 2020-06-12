@@ -35,7 +35,7 @@ argparser.add_argument(
 ######################### Main #########################
 ########################################################
 
-if _main(args):
+def _main(args):
     # Raw arguments from parser
     data_path = args.data_path
 
@@ -43,21 +43,23 @@ if _main(args):
     config = Config()
 
     # K-mean clustering
-    ratio = (config.OUTPUT_DIM[0]/config.INPUT_DIM[0])
+    input_size = config.INPUT_DIM[0]
     k = 5
     S = 13
-    print(k_mean_clustering(k,data_path,S,ratio,display=False))
+    data_path = '/Volumes/LUCA_EHD/TFE_DATA/USABLE_DATASETS/2D_DATASET_CT/2D_annotations_CT.p'
+    print(k_mean_clustering(k,data_path,S,input_size,display=True))
 
-def k_mean_clustering(k,data_path,S,ratio,display=False):
+def k_mean_clustering(k,data_path,S,input_size,display=False):
     dict = load_annotation(data_path)
     h = []
     w = []
     for file in dict.keys():
         for organ in dict[file]['bb'].keys():
             box = dict[file]['bb'][organ]
-            assert len(box) == 4
-            h.append(box[2]-box[0])
-            w.append(box[3]-box[1])
+            if box is not None and file.startswith('charleroi'):
+                assert len(box) == 4
+                h.append(box[2]-box[0])
+                w.append(box[3]-box[1])
 
     # data
     df = pd.DataFrame({'x' : w, 'y' : h})
@@ -78,12 +80,15 @@ def k_mean_clustering(k,data_path,S,ratio,display=False):
 
         plt.scatter(df['x'], df['y'], color=colors, alpha=0.5, edgecolor='k')
         for idx, centroid in enumerate(centroids):
-            plt.scatter(*centroid, color=colmap[idx+1])
+            plt.scatter(*centroid, color=colmap[idx+1],label='cluster '+str(idx))
         plt.xlim(0, 130)
         plt.ylim(0, 120)
+        plt.legend()
+        plt.ylabel('height (pixels)')
+        plt.xlabel('width (pixels)')
         plt.show()
 
-    return (centroids*ratio)/S
+    return (centroids/input_size)*S
 
 ########################################################
 ######################### Main #########################

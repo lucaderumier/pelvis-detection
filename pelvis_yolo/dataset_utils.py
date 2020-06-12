@@ -12,13 +12,6 @@ import PIL.Image
 from skimage.color import gray2rgb
 from utils import load_annotation
 
-########################################################
-#################### GPU Constraint ####################
-########################################################
-
-gpu = 3
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
-
 #########################################################
 ################### Parsing arguments ###################
 #########################################################
@@ -40,7 +33,8 @@ def _main(args):
     # Raw arguments from parser
     data_path = args.data_path
 
-    # Dictionnary of the organs and their index in the classes.txt file
+
+    # dictionary of the organs and their index in the classes.txt file
     label_dict = {'bladder' : 0, 'rectum' : 1, 'prostate' : 2}
 
     # Environment variables
@@ -55,18 +49,19 @@ def _main(args):
         dict = load_annotation(os.path.join(dataset_dir,annotation))
         yolo_dataset(dict,dataset_dir,filename,label_dict)
 
+
 #############################################
 ################### Utils ###################
 #############################################
 
 def yolo_dataset(dict,path,npz_filename,label_dict,shuffle = False):
-    '''Transform our dictionnary and images to npz data file that yolo can use.
+    '''Transform our dictionary and images to npz data file that yolo can use.
 
     Inputs:
-        dict: dictionnary with the bounding box annotations
+        dict: dictionary with the bounding box annotations
         path: the paht to the folder that has the images.
         npz_filename: the name we want for our output file.
-        label_dict: dictionnary that contains the organs as keys and their correspong class values as values.
+        label_dict: dictionary that contains the organs as keys and their correspong class values as values.
         shuffle: wether to shuffle the dataset or not.'''
 
     dir_list = sorted(os.listdir(path))
@@ -128,6 +123,47 @@ def yolo_dataset(dict,path,npz_filename,label_dict,shuffle = False):
     # Save int npz file usable by yolo
     np.savez(os.path.join(path,npz_filename), images=images, boxes=image_labels)
     print('Data saved into {}'.format(os.path.join(path,npz_filename)))
+
+def patients_full(path):
+    ''' Returns the list of all patients that are in the path folder (full images).
+
+    Input:
+        path: path to the full images folder
+
+    Returns:
+        patients: list of the patients numbers
+    '''
+
+    dir_list = sorted(os.listdir(path))
+
+    patients = []
+    for folder in dir_list:
+        if(folder.startswith('charleroi_')):
+            patients.append(int(folder[10:]))
+
+    return patients
+
+def patients(path):
+    ''' Returns the list of all patients that are used int the path folder (image slices).
+
+    Input:
+        path: path to the data folder
+
+    Returns:
+        patients: list of the patients numbers
+    '''
+
+    dir_list = [f for f in sorted(os.listdir(path)) if f.endswith('jpg')]
+    patients = []
+
+    for file in dir_list:
+        string_list = file.split('-')
+        num = str(string_list[2])
+        if num not in patients:
+            patients.append(num)
+
+    return patients
+
 
 ########################################################
 ######################### Main #########################

@@ -186,7 +186,9 @@ def _main(args):
         datagen_val = DataGenerator(list_ids_val, normalized_data_val, anchors, **params)
 
         train_generator(
+            data_path,
             model,
+            model_body,
             datagen_train,
             datagen_val,
             len(list_ids_train),
@@ -387,7 +389,7 @@ def create_model(anchors, class_names, freeze_body=True, load_pretrained=True):
 
 def train(data_path,model, model_body, class_names, anchors, data_train, data_val,config,weights_path=None,results_dir='results',gpu='3'):
     ''' Retrains/fine-tune the model.
-        Saves the weights every 10 epochs for 1000 epochs.
+        Saves the weights every 10 epochs for 130 epochs.
 
     Inputs:
         model: the model as returned by the create_model function.
@@ -437,7 +439,7 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
         load_stage = -1
 
     # Callbacks
-    logging = tf.keras.callbacks.TensorBoard()
+    logging = TensorBoard()
     #checkpoint = ModelCheckpoint("trained_best.h5", monitor='val_loss',save_weights_only=True, save_best_only=True)
     #early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
 
@@ -447,8 +449,14 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
     else:
         mean_IoU = []
 
+    # Configs
+    confif_model = tf.ConfigProto(allow_soft_placement=True)
+    confif_model.gpu_options.allocator_type = 'BFC'
+    #config.gpu_options.per_process_gpu_memory_fraction = 0.40
+    confif_model.gpu_options.allow_growth = True
+
     # Training for loop
-    for stage in range(load_stage+1,100):
+    for stage in range(load_stage+1,10):
         print('STAGE : {}'.format(stage))
         # Launch training
         history = model.fit(data_train,
@@ -463,7 +471,7 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
             pickle.dump(history.history, fp)
         model.save_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
-
+        '''
         # Call to predict function
         w = 'trained_stage_'+str(stage)+'.h5'
         dir_list = [x for x in sorted(os.listdir(os.path.join(data_path,'val'))) if x.endswith('.jpg')]
@@ -486,13 +494,14 @@ def train(data_path,model, model_body, class_names, anchors, data_train, data_va
         # Appending new mean IoU to list
         mean_IoU.append(np.mean([item for key,item in iou_stats['mean'].items()]))
         print('average IoU update : {}'.format(mean_IoU))
+        '''
 
         # Safety load
         model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
 
-def train_generator(model, training_generator, validation_generator, train_size, data_shape, class_names, anchors, config, weights_path=None,results_dir='results',gpu='3'):
+def train_generator(data_path,model,model_body, training_generator, validation_generator, train_size, data_shape, class_names, anchors, config, weights_path=None,results_dir='results',gpu='3'):
     ''' Retrains/fine-tune the model with custom data generator.
-        Saves the weights every 10 epochs for 200 epochs.
+        Saves the weights every 10 epochs for 1000 epochs.
 
     Inputs:
         model: the model as returned by the create_model function.
@@ -536,14 +545,24 @@ def train_generator(model, training_generator, validation_generator, train_size,
 
     if weights_path is not None:
         model.load_weights(weights_path)
+        basename = os.path.basename(weights_path)
+        load_stage = int(re.findall('\d+', basename)[0])
+    else:
+        load_stage = -1
 
     # Callbacks
-    logging = tf.keras.callbacks.TensorBoard()
+    logging = TensorBoard()
     #checkpoint = ModelCheckpoint("trained_best.h5", monitor='val_loss',save_weights_only=True, save_best_only=True)
     #early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
 
+    # Initializing mean IoU
+    if(load_stage == 0):
+        mean_IoU = [0]
+    else:
+        mean_IoU = []
+
     # Training for loop
-    for stage in range(20):
+    for stage in range(load_stage+1,100):
         # SLaunch training
         history = model.fit_generator(generator=training_generator,
                         validation_data=validation_generator,
@@ -555,6 +574,29 @@ def train_generator(model, training_generator, validation_generator, train_size,
         with open(os.path.join(results_dir,'history','history'+str(stage)+'.p'), 'wb') as fp:
             pickle.dump(history.history, fp)
         model.save_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
+
+        # Call to predict function
+        w = 'trained_stage_'+str(stage)+'.h5'
+        dir_list = [x for x in sorted(os.listdir(os.path.join(data_path,'val'))) if x.endswith('.jpg')]
+        pred = predict(model_body,
+            class_names,
+            anchors,
+            data_val[0],
+            w,
+            dir_list,
+            non_best_sup=config.NON_BEST_SUP,
+            results_dir=results_dir,
+            save=False,
+            training=True)
+
+        # Call to evaluate function
+        gt = load_annotation(os.path.join(data_path,'val','annotations_val.p'))
+        ratio = (config.INPUT_DIM[0]/config.OUTPUT_DIM[0])
+        iou_stats = IoU(gt,pred,ratio)
+
+        # Appending new mean IoU to list
+        mean_IoU.append(np.mean([item for key,item in iou_stats['mean'].items()]))
+        print('average IoU update : {}'.format(mean_IoU))
 
         # Safety load
         model.load_weights(os.path.join(results_dir,'models','trained_stage_'+str(stage)+'.h5'))
@@ -667,7 +709,7 @@ if __name__ == '__main__':
     ########################################################
 
     gpu = args.gpu
-    os.environ['CUDA_VISIBLE_DEVICES'] = gpu
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,3'
 
     ######################################################
     #################### Call to main ####################
