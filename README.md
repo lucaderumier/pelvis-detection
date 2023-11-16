@@ -3,7 +3,7 @@
 ## Description
 
 This repository contains the files that were used for my master thesis.
-The aim of the methods defined in this repositroy is to detect organs (bladder, rectum, prostate) in CT and CBCT scans of the male pelvic area and extract a boudning box containing all of them. This repositroy contains two distinct classes of algorithms : the classical computer vision based methods (split_segmentaion) and the learning based method (pelvis_yolo). Both are described in below.
+The aim of the methods defined in this repositroy is to detect organs (bladder, rectum, prostate) in CT and CBCT scans of the male pelvic area and extract a bounding box containing all of them. This repositroy contains two distinct classes of algorithms : the classical computer vision based methods (split_segmentaion) and the learning based method (pelvis_yolo). Both are described in below.
 
 --------------------------------------------------------------------------------
 
